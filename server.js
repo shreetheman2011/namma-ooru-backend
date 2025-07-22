@@ -450,5 +450,39 @@ app.get("/health", (req, res) => {
     database: db ? "Connected" : "Disconnected",
   });
 });
+// PUT /members/:id/photo - update photo_link only
+app.put("/members/:id/photo", async (req, res) => {
+  const { id } = req.params;
+  const { photo_link } = req.body;
+
+  if (!photo_link) {
+    return res.status(400).json({ message: "photo_link is required" });
+  }
+
+  try {
+    const result = await db.collection("members").updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: { photo_link, UserUpdated: new Date() },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    const updatedMember = await db
+      .collection("members")
+      .findOne({ _id: new ObjectId(id) });
+
+    res.json({
+      message: "Photo updated successfully",
+      member: updatedMember,
+    });
+  } catch (error) {
+    console.error("Error updating photo:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 module.exports = app;
