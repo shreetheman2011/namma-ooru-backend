@@ -505,7 +505,7 @@ app.post("/send-email", async (req, res) => {
 
     const msg = {
       to: toArray,
-      from: "NAAM <shree.manickaraja@gmail.com>",
+      from: "shree.manickaraja@gmail.com",
       subject: "NAAM - A New Event Has Been Posted - " + subject,
       html: `<p>${body}</p>`,
     };
