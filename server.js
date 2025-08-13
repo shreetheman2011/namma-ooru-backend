@@ -485,4 +485,39 @@ app.put("/members/:id/photo", async (req, res) => {
   }
 });
 
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+app.post("/send-email", async (req, res) => {
+  const { recipients, subject, body } = req.body;
+
+  if (!recipients || !body) {
+    return res
+      .status(400)
+      .json({ message: "Recipients and body are required" });
+  }
+
+  try {
+    const toArray = recipients
+      .split(",")
+      .map((e) => e.trim())
+      .filter((e) => e);
+
+    const msg = {
+      to: toArray,
+      from: "NAAM <shree.manickaraja@gmail.com>",
+      subject: "NAAM - A New Event Has Been Posted - " + subject,
+      html: `<p>${body}</p>`,
+    };
+
+    await sgMail.sendMultiple(msg);
+    res.json({ message: "Emails sent successfully" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to send email", error: error.message });
+  }
+});
+
 module.exports = app;
