@@ -520,4 +520,96 @@ app.post("/send-email", async (req, res) => {
   }
 });
 
+// ✅ NEW: Website-only routes
+const { OAuth2Client } = require("google-auth-library");
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// POST /web/auth/google - Verify Google token & whitelist check
+app.post("/web/auth/google", async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Google token required" });
+  }
+
+  try {
+    // Verify token with Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload.email;
+
+    const membersCollection = db.collection("members");
+    const member = await membersCollection.findOne({
+      $or: [{ "Spouse email id": email }, { Email: email }],
+    });
+
+    if (!member) {
+      return res
+        .status(403)
+        .json({ ok: false, message: "Email not in member list" });
+    }
+
+    res.json({
+      ok: true,
+      email,
+      userId: member._id,
+      name: `${member["First name"] || ""} ${member["Last name"] || ""}`.trim(),
+    });
+  } catch (err) {
+    console.error("Google auth verification failed:", err);
+    res.status(401).json({ ok: false, message: "Invalid Google token" });
+  }
+});
+
+// GET /web/members/:id - Website-only member fetch
+app.get("/web/members/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id))
+    return res.status(400).json({ ok: false, message: "Invalid ID" });
+
+  try {
+    const member = await db
+      .collection("members")
+      .findOne({ _id: new ObjectId(id) });
+    if (!member)
+      return res.status(404).json({ ok: false, message: "Member not found" });
+    res.json(member);
+  } catch (err) {
+    console.error("Error fetching member for website:", err);
+    res.status(500).json({ ok: false, message: "Internal server error" });
+  }
+});
+
+// PUT /web/members/:id - Website-only member update
+app.put("/web/members/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!ObjectId.isValid(id))
+    return res.status(400).json({ ok: false, message: "Invalid ID" });
+
+  try {
+    const { _id, ...fieldsToUpdate } = req.body;
+    fieldsToUpdate.UserUpdated = new Date();
+
+    const result = await db
+      .collection("members")
+      .updateOne({ _id: new ObjectId(id) }, { $set: fieldsToUpdate });
+
+    if (result.matchedCount === 0)
+      return res.status(404).json({ ok: false, message: "Member not found" });
+
+    const updatedMember = await db
+      .collection("members")
+      .findOne({ _id: new ObjectId(id) });
+
+    res.json({ ok: true, member: updatedMember });
+  } catch (err) {
+    console.error("Error updating member for website:", err);
+    res.status(500).json({ ok: false, message: "Internal server error" });
+  }
+});
+
 module.exports = app;
