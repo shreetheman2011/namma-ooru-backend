@@ -113,6 +113,7 @@ app.get("/members", async (req, res) => {
       "Spouse last name": 1,
       City: 1,
       "Chettinad native place": 1,
+      photo_link: 1,
     })
     .sort({ "First name": 1 })
     .skip(skip)
