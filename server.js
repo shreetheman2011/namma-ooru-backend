@@ -1,7 +1,8 @@
 const express = require("express");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
-
+const https = require("https");
+const cron = require("cron");
 const app = express();
 const PORT = process.env.PORT || 3001;
 require("dotenv").config();
@@ -9,6 +10,14 @@ require("dotenv").config();
 // Middleware
 app.use(cors({ origin: "*" }));
 app.use(express.json());
+const job = new cron.CronJob("*/14 * * * *", function () {
+  https
+    .get("https://react-native-acepoint-backend.onrender.com", (res) => {
+      if (res.statusCode === 200) console.log("GET request sent succesfully");
+      else console.log("GET request failed", res.statusCode);
+    })
+    .on("error", (e) => console.log("error while sending request", e));
+});
 
 // MongoDB connection
 const MONGODB_URI =
@@ -41,7 +50,7 @@ const startServer = async () => {
 };
 
 startServer();
-
+job.start();
 // Whitelist check endpoint
 app.post("/check-whitelist", async (req, res) => {
   console.log("POST /check-whitelist hit");
