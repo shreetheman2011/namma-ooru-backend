@@ -3,6 +3,10 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 const cors = require("cors");
 const https = require("https");
 const cron = require("cron");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -574,6 +578,33 @@ app.post("/web/auth/google", async (req, res) => {
     res.status(401).json({ ok: false, message: "Invalid Google token" });
   }
 });
+// -------------------- FILE UPLOAD CONFIG --------------------
+
+// Ensure upload directory exists
+const uploadDir = "/assets/peopleImages";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure Multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + path.extname(file.originalname)),
+});
+
+const upload = multer({ storage });
+
+// POST /upload - single file upload
+app.post("/upload", upload.single("file"), (req, res) => {
+  res.json({
+    message: "✅ File uploaded successfully!",
+    fileUrl: `/peopleImages/${req.file.filename}`,
+  });
+});
+
+// Serve uploaded files statically
+app.use("/peopleImages", express.static("/assets/peopleImages"));
 
 // GET /web/members/:id - Website-only member fetch
 app.get("/web/members/:id", async (req, res) => {
